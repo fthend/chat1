@@ -1,0 +1,191 @@
+import socket
+import threading
+import logging
+from datetime import date
+
+# Создание лог-файла на текущую дату
+logging.basicConfig(filename=str(date.today()) + '.log', level=logging.DEBUG)
+
+# Создание сокета и связывание с портом
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind(('localhost', 12345))
+server_socket.listen()
+
+# Словарь клиентов и их имена
+clients = {}
+usernames = []
+
+
+# Отправка сообщения всем клиентам
+def broadcast(message):
+    for client in clients:
+        client.send(message)
+
+
+# Обработка сообщений от клиента
+def handle(client):
+    while True:
+        try:
+            message = client.recv(1024)
+            broadcast(message)
+            # Запись сообщения в лог
+            logging.info(message.decode('utf-8'))
+        except:
+            username = clients.pop(client)
+            usernames.remove(username)
+            logging.info(username + ' disconnected')
+            broadcast((username + ' disconnected').encode('utf-8'))
+            break
+
+
+# Приём новых клиентов и их авторизация
+def receive():
+    while True:
+        client, address = server_socket.accept()
+        client.send('USERNAME'.encode('utf-8'))
+        username = client.recv(1024).decode('utf-8')
+        if username in usernames:
+            client.send('USERNAME EXISTS'.encode('utf-8'))
+            client.close()
+        else:
+            clients[client] = username
+            usernames.append(username)
+            client.send('AUTHORIZED'.encode('utf-8'))
+            logging.info(username + ' connected')
+            broadcast((username + ' connected').encode('utf-8'))
+            thread = threading.Thread(target=handle, args=(client,))
+            thread.start()
+
+
+print('Server started...')
+receive()
+
+
+
+
+
+
+
+
+
+
+
+import socket
+import threading
+import tkinter as tk
+from datetime import date
+
+# Создание лог-файла на текущую дату
+log_file = open(str(date.today()) + '.log', 'a+')
+
+# Окно авторизации
+root_auth = tk.Tk()
+root_auth.title('Authorization')
+root_auth.geometry('300x150')
+
+# Создание надписи для поля ввода имени пользователя
+username_label = tk.Label(root_auth, text='Enter your username:')
+username_label.pack(pady=10)
+
+# Создание поля ввода имени пользователя
+username_entry = tk.Entry(root_auth, width=30)
+username_entry.pack()
+
+# Создание кнопки отправки имени пользователя
+username_button = tk.Button(root_auth, text='Log in')
+
+# Создание метки для вывода ошибки
+error_label = tk.Label(root_auth, fg='red')
+
+# Функция отправки имени пользователя на сервер
+def send_username():
+    global username
+    username = username_entry.get()
+    client_socket.send(username.encode('utf-8'))
+    response = client_socket.recv(1024).decode('utf-8')
+    if response == 'USERNAME EXISTS':
+        error_label.config(text='Username already exists')
+    else:
+        root_auth.destroy()
+
+# Привязка функции отправки имени пользователя к кнопке
+username_button.config(command=send_username)
+username_button.pack(pady=10)
+
+# Создание метки для вывода информации о подключении
+connect_label = tk.Label(root_auth)
+connect_label.pack()
+
+# Создание сокета и подключение к серверу
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client_socket.connect(('localhost', 12345))
+connect_label.config(text='Connected to server')
+
+# Запуск окна авторизации
+root_auth.mainloop()
+
+# Окно чата
+root_chat = tk.Tk()
+root_chat.title('Chat')
+root_chat.geometry('600x400')
+
+# Создание метки для вывода информации о подключении
+connect_label = tk.Label(root_chat)
+connect_label.pack(pady=10)
+
+# Создание текстового поля для вывода сообщений
+message_box = tk.Text(root_chat, width=60)
+message_box.pack(padx=10, pady=10)
+
+# Создание метки для поля ввода сообщения
+message_label = tk.Label(root_chat, text='Enter your message:')
+message_label.pack(pady=5)
+
+# Создание поля ввода сообщения
+message_entry = tk.Entry(root_chat, width=60)
+message_entry.pack(padx=10)
+
+# Создание кнопки отправки сообщения
+message_button = tk.Button(root_chat, text='Send')
+
+# Привязка отправки сообщения к кнопке
+def send_message(event=None):
+    message = message_entry.get()
+    message_entry.delete(0, 'end')
+    client_socket.send((username + ': ' + message).encode('utf-8'))
+message_button.config(command=send_message)
+message_button.pack(pady=10)
+
+# Привязка отправки сообщения к нажатию Enter
+root_chat.bind('<Return>', send_message)
+
+# Функция получения сообщений от сервера
+def receive():
+    while True:
+        try:
+            message = client_socket.recv(1024).decode('utf-8')
+            message_box.insert('end', message + '\n')
+            # Запись сообщения в лог
+            log_file.write(message + '\n')
+        except:
+            client_socket.close()
+            root_chat.destroy()
+            break
+
+# Отправка истории сообщений при подключении к чату
+log_file.seek(0)
+history = log_file.read()
+client_socket.send(history.encode('utf-8'))
+
+# Запуск функции получения сообщений от сервера в отдельном потоке
+receive_thread = threading.Thread(target=receive)
+receive_thread.start()
+
+# Вывод информации о подключении
+connect_label.config(text='Connected as ' + (username if 'username' in globals() else 'Unknown user'))
+
+# Запуск окна чата
+root_chat.mainloop()
+
+# Закрытие лог-файла
+log_file.close()
