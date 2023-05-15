@@ -2,6 +2,7 @@ import os
 import socket
 import sys
 import threading
+import time
 import tkinter
 import tkinter.scrolledtext
 from tkinter import simpledialog
@@ -72,7 +73,8 @@ class Client:
 
 
     def on_closing(self):
-        self.sock.send("<exit>".encode('utf-8'))
+        if self.sock and self.sock.fileno() != -1:
+            self.sock.send("<exit>".encode('utf-8'))
         self.win.destroy()
         self.running = False
         self.sock.close()
@@ -92,6 +94,9 @@ class Client:
                     self.text_area.yview('end')
                     self.text_area.config(state='disabled')
                     self.send_button.config(state='disabled')
+                    # time.sleep(5)
+                    # self.win.destroy()
+                    # self.running = False
                     self.sock.close()
                     # tkinter.messagebox.showerror("Ошибка", "Произошла ошибка. Приложение будет закрыто.")
                 else:
