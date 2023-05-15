@@ -74,10 +74,11 @@ class Client:
         # Останавливаем поток и завершаем приложение
         self.running = False
         self.sock.close()
+        self.win.destroy()
         self.win.after(0, self.stop)
 
     def stop(self):
-        # self.win.destroy()
+
         exit(0)
 
     def recieve(self):
