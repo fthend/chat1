@@ -56,7 +56,7 @@ class Client:
 
         self.gui_done = True
         self.send_done_message()
-        self.win.protocol("WM_DELETE_WINDOW", self.stop)
+        self.win.protocol("WM_DELETE_WINDOW", self.on_closing)
 
         self.win.mainloop()
 
@@ -69,10 +69,15 @@ class Client:
         self.sock.send(message.encode('utf-8'))
         self.input_area.delete('1.0', 'end')
 
-    def stop(self):
-        self.running - False
-        self.win.destroy()
+
+    def on_closing(self):
+        # Останавливаем поток и завершаем приложение
+        self.running = False
         self.sock.close()
+        self.win.after(0, self.stop)
+
+    def stop(self):
+        # self.win.destroy()
         exit(0)
 
     def recieve(self):
